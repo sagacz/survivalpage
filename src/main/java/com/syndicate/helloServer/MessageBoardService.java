@@ -6,12 +6,13 @@ import io.vavr.control.Option;
 
 public class MessageBoardService {
 
+    public static final String FILE_NAME = "messages.txt";
     private Map<String, Topic> topics;
+    private final BoardMessageWriter writer = new BoardMessageWriter(FILE_NAME);
 
     public MessageBoardService() {
-        this.topics = List.of("java", "general", "weird")
-                        .map(name -> Topic.create(name))
-                        .toMap(topic -> topic.name, topic -> topic);
+        this.topics = new BoardMessageReader().readAllTopics(FILE_NAME);
+        
     }
 
     synchronized Option<Topic> getTopic(String topicName){
@@ -20,6 +21,7 @@ public class MessageBoardService {
 
     synchronized Option<Topic> addMessageToTopic(String topicName, Message newMsg){
         Option<Topic> newTopic = getTopic(topicName).map(topic -> topic.addMessage(newMsg));
+        newTopic.forEach( topic -> writer.write(topic.name, newMsg));
         Option<Map<String, Topic>> newTopics = newTopic.map(topic -> this.topics.put(topicName, topic));
         newTopics.forEach(topics -> this.topics = topics);
         return newTopic;

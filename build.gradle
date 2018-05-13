@@ -18,4 +18,8 @@ dependencies {
 	compile ('io.vavr:vavr:0.9.2')
 	testCompile('org.springframework.boot:spring-boot-starter-test')
 	testCompile('io.projectreactor:reactor-test')
+    testCompile("org.junit.jupiter:junit-jupiter-api:5.2.0")
+    testCompile('org.junit.platform: org.junit-platform-runner')
+    testRuntime("org.junit.jupiter:junit-jupiter-engine:5.2.0")
+
 }

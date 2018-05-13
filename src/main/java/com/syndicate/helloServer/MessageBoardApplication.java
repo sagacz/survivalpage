@@ -2,6 +2,7 @@ package com.syndicate.helloServer;
 
 
 import io.vavr.collection.List;
+import io.vavr.control.Option;
 import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.HttpHandler;
 import org.springframework.http.server.reactive.ReactorHttpHandlerAdapter;
@@ -24,18 +25,18 @@ import static org.springframework.web.reactive.function.server.RequestPredicates
 import static org.springframework.web.reactive.function.server.RouterFunctions.nest;
 import static org.springframework.web.reactive.function.server.RouterFunctions.route;
 
-public class HelloServerApplication {
+public class MessageBoardApplication {
 
-    private List<Message> messages = List.empty();
+    private final MessageBoardService  service = new MessageBoardService();
 
-    private HelloServerApplication(){
-        addMessage(new Message("test content", "Andrew"));
-        addMessage(new Message("anyother message", "John Tester"));
+
+    private MessageBoardApplication(){
+
     }
 
     public static void main(String[] args) {
 
-        new HelloServerApplication().serve();
+        new MessageBoardApplication().serve();
 
 
     }
@@ -43,8 +44,8 @@ public class HelloServerApplication {
     private void serve() {
         RouterFunction route = nest(path("/api"),
                 route(GET("/time"), getTime())
-                .andRoute(GET("/messages"), renderMessages())
-        .andRoute(POST("/messages"), postMessages())
+                .andRoute(GET("/messages/{topic}"), renderMessages())
+        .andRoute(POST("/messages/{topic}"), postMessages())
         );
 
         HttpHandler httpHandler = RouterFunctions.toHttpHandler(route);
@@ -57,25 +58,29 @@ public class HelloServerApplication {
         return request -> {
             Mono<Message> postedMessage = request.bodyToMono(Message.class);
             return postedMessage.flatMap( message -> {
-                addMessage(message);
-                return ServerResponse.ok()
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .body(fromObject(getMessages().toJavaList()));
+                final String topicName = request.pathVariable("topic");
+                final Option<Topic> topicOption = service.addMessageToTopic(topicName, message);
+                return messegesOrError(topicOption);
 
             });
         };
     }
 
-    private synchronized void addMessage(Message message) {
-        messages = messages.append(message);
-    }
+
 
     private HandlerFunction<ServerResponse> renderMessages() {
         return request -> {
-            return ServerResponse.ok()
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .body(fromObject(getMessages().toJavaList()));
+            final String topicName = request.pathVariable("topic");
+            final Option<Topic> topicOption = service.getTopic(topicName);
+            return messegesOrError(topicOption);
         };
+    }
+
+    private Mono<ServerResponse> messegesOrError(Option<Topic> topicOption) {
+        return topicOption.map( topic -> ServerResponse.ok()
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(fromObject(topic.messages.toJavaList())) )
+                .getOrElse(() -> ServerResponse.notFound().build());
     }
 
     private HandlerFunction<ServerResponse> getTime() {
@@ -89,7 +94,5 @@ public class HelloServerApplication {
         };
     }
 
-    private synchronized List<Message> getMessages(){
-        return this.messages;
-    }
+
 }
